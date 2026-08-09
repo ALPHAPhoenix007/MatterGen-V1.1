@@ -219,3 +219,8 @@ MatterGen uses the following open-source technologies:
 - NumPy
 - Plotly
 - Py3Dmol
+
+
+
+
+## **--Envisioned by Atharva Dangra, B. Jyothi Nikhil & D. Koushik Mohammed--**
