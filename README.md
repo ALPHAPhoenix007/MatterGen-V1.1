@@ -1,277 +1,221 @@
-# ⚗️ MatterGen: AI-Powered Material Property Predictor
+# MatterGen
 
-**A machine learning system for predicting material properties from molecular structure**
+## AI-Powered Material Property Prediction
 
-Built for hackathons | Clean code | Jury-ready | Production-style architecture
+MatterGen is a machine learning application for predicting material properties from molecular structure. The system accepts molecular representations such as SMILES strings and chemical formulas, processes them using RDKit, and applies scikit-learn models to estimate selected material properties.
 
----
+The project combines molecular feature extraction, supervised learning, molecular similarity analysis, and 3D structure visualization in a single Streamlit application.
 
-## 🎯 Project Overview
+## Features
 
-MatterGen is an AI-powered web application that predicts material properties (band gap, stability, melting point) from chemical formulas or SMILES strings using:
-- **Machine Learning**: scikit-learn Random Forest models
-- **Chemistry**: RDKit molecular processing
-- **Similarity Matching**: Tanimoto similarity with Morgan fingerprints
-- **Interactive UI**: Streamlit web interface with 3D visualization
+- Molecular input through SMILES strings and chemical formulas
+- Prediction of band gap, formation energy, stability score, and melting point
+- Molecular descriptor-based machine learning
+- Morgan fingerprint generation for molecular similarity analysis
+- Tanimoto similarity matching against reference compounds
+- Interactive 3D molecular visualization
+- Model feature importance and prediction insights
+- Modular separation of chemistry, machine learning, similarity, and visualization components
 
-### Key Features
-✅ Multiple input methods (SMILES, formula, examples)  
-✅ 4 property predictions per molecule  
-✅ Similarity matching with known compounds  
-✅ Interactive 3D molecular visualization  
-✅ Model explainability & feature importance  
-✅ Professional scientific UI (no chatbot vibes)
+## Architecture
 
----
-
-## 🏗️ Architecture
-
+```text
+Molecular Input
+      |
+      v
+RDKit Molecular Processing
+      |
+      v
+Feature Extraction
+  |              |
+  |              +--> Morgan Fingerprints
+  |
+  +-----------------> Molecular Descriptors
+      |
+      +----------------------+
+      |                      |
+      v                      v
+ML Prediction         Similarity Analysis
+      |                      |
+      +----------+-----------+
+                 |
+                 v
+          Streamlit Interface
+                 |
+       +---------+---------+
+       |         |         |
+       v         v         v
+ Predictions  Similarity  3D Structure
 ```
+
+## Machine Learning Pipeline
+
+### 1. Molecular Processing
+
+The application validates and parses molecular inputs using RDKit. SMILES strings are converted into molecular structures before feature extraction.
+
+### 2. Feature Extraction
+
+The system uses two main molecular representations:
+
+- **Molecular descriptors** for material property prediction, including molecular weight, LogP, TPSA, and other structural descriptors.
+- **Morgan fingerprints (ECFP4)** with 2048 bits for molecular similarity analysis.
+
+### 3. Property Prediction
+
+Random Forest regression models are used to predict the following properties:
+
+| Property | Unit |
+|---|---|
+| Band Gap | eV |
+| Formation Energy | eV/atom |
+| Stability Score | 0–1 |
+| Melting Point | K |
+
+Separate regression models are used for the target properties.
+
+### 4. Similarity Analysis
+
+Morgan fingerprints are compared using the Tanimoto coefficient to identify structurally similar compounds in the reference dataset. The application returns the most similar compounds and their similarity scores.
+
+### 5. Visualization
+
+Molecular structures are visualized interactively in three dimensions using Py3Dmol. RDKit is used for molecular processing and 3D coordinate generation.
+
+## Model Configuration
+
+- **Algorithm:** Random Forest Regressor
+- **Number of estimators:** 100
+- **Maximum depth:** 10
+- **Features:** RDKit molecular descriptors
+- **Training split:** 80/20
+- **Cross-validation:** 5-fold
+- **Evaluation metrics:** MAE, RMSE, R²
+
+The current prototype uses a dataset containing 50 compounds. The dataset is intended to demonstrate the complete prediction workflow rather than serve as a production-scale scientific benchmark.
+
+## Project Structure
+
+```text
 MatterGen/
-├── app.py                      # Main Streamlit application
-├── requirements.txt            # Python dependencies
-├── README.md                   # This file
 │
-├── backend/                    # Core ML & chemistry logic
-│   ├── chemistry.py           # RDKit molecule processing
-│   ├── features.py            # Feature extraction (fingerprints, descriptors)
-│   ├── ml_models.py           # ML prediction pipeline
-│   └── similarity.py          # Similarity matching engine
+├── app.py
+├── requirements.txt
+├── README.md
 │
-├── data/                       # Datasets
-│   ├── materials_dataset.csv  # Training data (50 compounds)
-│   └── sample_inputs.csv      # Example molecules
+├── backend/
+│   ├── chemistry.py
+│   ├── features.py
+│   ├── ml_models.py
+│   └── similarity.py
 │
-├── models/                     # Saved ML models (generated on first run)
+├── data/
+│   ├── materials_dataset.csv
+│   └── sample_inputs.csv
+│
+├── models/
 │   └── trained_model.pkl
 │
-└── utils/                      # Helper functions
-    ├── config.py              # Configuration & constants
-    └── visualizer.py          # 3D visualization (Py3Dmol)
+└── utils/
+    ├── config.py
+    └── visualizer.py
 ```
 
----
+## Technology Stack
 
-## 🚀 Quick Start
+| Technology | Purpose |
+|---|---|
+| Python | Core development and ML pipeline |
+| Scikit-learn | Machine learning and model evaluation |
+| RDKit | Molecular processing and cheminformatics |
+| Streamlit | Web application interface |
+| Pandas | Dataset processing |
+| NumPy | Numerical computation |
+| Plotly | Interactive data visualization |
+| Py3Dmol | 3D molecular visualization |
 
-### Installation
+## Dataset
 
-1. **Clone repository**
+The prototype uses `data/materials_dataset.csv`, containing molecular representations and corresponding material properties for 50 compounds.
+
+The current dataset is intended for development and demonstration. Because of its limited size and composition, predictions should not be treated as experimentally validated material properties.
+
+Potential data sources for future development include:
+
+- Materials Project
+- PubChem
+- Cambridge Structural Database
+
+## Installation
+
+### 1. Clone the repository
+
 ```bash
-git clone <your-repo>
+git clone <repository-url>
 cd MatterGen
 ```
 
-2. **Install dependencies**
+### 2. Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Run application**
+### 3. Run the application
+
 ```bash
 streamlit run app.py
 ```
 
-4. **Open browser**
-Navigate to `http://localhost:8501`
+The application will be available at:
 
----
-
-## 🧪 How It Works
-
-### 1. Input Processing
-- User enters SMILES string (e.g., `c1ccccc1` for benzene) or molecular formula
-- RDKit validates and parses the molecule
-- System extracts structural features
-
-### 2. Feature Extraction
-- **Morgan Fingerprints** (ECFP4): 2048-bit binary vectors for similarity
-- **Molecular Descriptors**: 8 key properties (MolWt, LogP, TPSA, etc.)
-- Features are normalized using training statistics
-
-### 3. ML Prediction
-- **Random Forest Regressors** (one per property)
-- Trained on 50 diverse organic/inorganic compounds
-- 5-fold cross-validation during training
-- Outputs: band gap, formation energy, stability score, melting point
-
-### 4. Similarity Matching
-- Compares query molecule to database using Tanimoto similarity
-- Returns top-5 most similar known compounds
-- Useful for validating predictions against known materials
-
-### 5. Visualization
-- Interactive 3D molecular structure using Py3Dmol
-- Rotatable, zoomable, multiple rendering styles
-- Embedded directly in Streamlit
-
----
-
-## 📊 Predicted Properties
-
-| Property | Unit | Description |
-|----------|------|-------------|
-| **Band Gap** | eV | Electronic band gap (semiconductors) |
-| **Formation Energy** | eV/atom | Thermodynamic stability |
-| **Stability Score** | 0-1 | Chemical stability metric |
-| **Melting Point** | K | Phase transition temperature |
-
----
-
-## 🎨 UI Features
-
-### Professional Scientific Design
-- Clean color palette (deep blue, green, white)
-- Card-based layout for metrics
-- Tabbed interface for organization
-- No flashy animations or AI chatbot aesthetics
-
-### Four Main Tabs
-1. **📊 Predictions**: Property predictions + molecular info
-2. **🔍 Similarity Analysis**: Similar compounds + comparison
-3. **🧬 3D Structure**: Interactive molecular visualization
-4. **📈 Model Insights**: Feature importance + dataset stats
-
----
-
-## 🔬 Technical Details
-
-### Machine Learning
-- **Model**: Random Forest Regressor (100 trees, max_depth=10)
-- **Features**: 8 RDKit molecular descriptors
-- **Training**: 80/20 train-test split, 5-fold CV
-- **Metrics**: MAE, RMSE, R² score
-
-### Chemistry Engine
-- **Library**: RDKit 2023.9.4
-- **Fingerprints**: Morgan (circular, radius=2)
-- **3D Generation**: MMFF force field optimization
-- **Validation**: Molecule sanitization + structural checks
-
-### Similarity Matching
-- **Algorithm**: Tanimoto coefficient on Morgan fingerprints
-- **Threshold**: Minimum 0.0 (configurable)
-- **Results**: Top-5 most similar compounds
-
----
-
-## 📁 Dataset
-
-**Training Data**: `data/materials_dataset.csv`
-- **Size**: 50 compounds
-- **Diversity**: Organic (benzene, alcohols) + inorganic (water, salts)
-- **Properties**: Band gap, formation energy, stability, melting point
-- **Source**: Synthetic data for hackathon (based on realistic values)
-
-**Note**: In production, this would be replaced with databases like:
-- Materials Project API
-- PubChem
-- Cambridge Structural Database
-
----
-
-## 🎓 Jury Presentation Tips
-
-### What Makes This Project Strong
-1. **Full-stack implementation** (backend ML + frontend UI)
-2. **Production-quality code** (modular, documented, testable)
-3. **Real chemistry** (RDKit is industry-standard)
-4. **Explainable AI** (feature importance, similarity matching)
-5. **Realistic scope** (hackathon-appropriate, not overengineered)
-
-### Demo Flow
-1. Show the UI (professional, clean)
-2. Input a simple molecule (benzene)
-3. Explain the prediction pipeline
-4. Show similar compounds
-5. Display 3D structure
-6. Show feature importance graph
-7. Discuss future improvements
-
-### Key Technical Terms
-- **ECFP (Extended Connectivity Fingerprints)**: Industry-standard molecular representation
-- **Tanimoto Similarity**: Standard metric for molecular similarity
-- **Random Forest**: Interpretable, robust ML algorithm
-- **RDKit**: Leading open-source cheminformatics toolkit
-
----
-
-## 🔮 Future Improvements
-
-### Short-term (Post-Hackathon)
-- [ ] Add more training data (expand to 1000+ compounds)
-- [ ] Implement ensemble models (RF + Gradient Boosting)
-- [ ] Add uncertainty quantification (prediction intervals)
-- [ ] Export predictions to PDF report
-
-### Long-term (Production)
-- [ ] Connect to Materials Project API
-- [ ] Add reaction prediction
-- [ ] Multi-objective optimization
-- [ ] Deployment on cloud (AWS/GCP)
-- [ ] User authentication & saved sessions
-
----
-
-## 🛠️ Development
-
-### Adding New Properties
-1. Add property to `utils/config.py` PROPERTIES list
-2. Add column to `data/materials_dataset.csv`
-3. Retrain models (automatic on app restart)
-4. Update UI in `app.py` (add to property_info dict)
-
-### Testing
-```bash
-# Test molecule parsing
-python -c "from backend.chemistry import smiles_to_mol; print(smiles_to_mol('CCO'))"
-
-# Test feature extraction
-python -c "from backend.features import extract_features_from_smiles; print(extract_features_from_smiles('c1ccccc1'))"
+```text
+http://localhost:8501
 ```
 
----
+## Example Workflow
 
-## 🤝 Contributing
+1. Enter a SMILES string or molecular formula.
+2. Validate and process the molecular structure using RDKit.
+3. Generate molecular descriptors and fingerprints.
+4. Run the trained Random Forest models.
+5. Display predicted material properties.
+6. Compare the input molecule with structurally similar compounds.
+7. Explore the molecular structure and model insights.
 
-This is a hackathon project, but contributions welcome!
+## Limitations
 
-1. Fork the repo
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+MatterGen is currently a research and hackathon prototype. The training dataset is relatively small and includes synthetic or curated values. Consequently, the predictions are intended for demonstration and exploration rather than direct experimental or industrial decision-making.
 
----
+The accuracy and generalization of the models can be improved substantially with larger, higher-quality, experimentally validated datasets.
 
-## 📄 License
+## Future Development
 
-MIT License - feel free to use for learning/hackathons
+- Expand the training dataset to thousands of compounds
+- Integrate Materials Project data through its API
+- Evaluate additional models such as Gradient Boosting and neural networks
+- Add prediction uncertainty estimates
+- Implement multi-objective material optimization
+- Improve validation using experimentally reported properties
+- Provide downloadable prediction reports
+- Deploy the application for wider access
 
----
-
-## 👨‍💻 Author
-
-Built with ☕ and 🧪 for [Your Hackathon Name]
-
-**Tech Stack**: Python | Streamlit | RDKit | scikit-learn | Plotly
-
-**Questions?** Open an issue or reach out!
-
----
-
-## 🙏 Acknowledgments
-
-- **RDKit**: Chemistry toolkit
-- **Streamlit**: Rapid UI framework
-- **Materials Project**: Inspiration for properties
-- **scikit-learn**: ML library
-- **Py3Dmol**: 3D visualization
-
-## App URL
+## Live Application
 
 https://mattergen.streamlit.app/
 
----
+## License
 
-**⭐ Star this repo if you found it useful!**
+This project is released under the MIT License.
+
+## Acknowledgements
+
+MatterGen uses the following open-source technologies:
+
+- RDKit
+- Scikit-learn
+- Streamlit
+- Pandas
+- NumPy
+- Plotly
+- Py3Dmol
