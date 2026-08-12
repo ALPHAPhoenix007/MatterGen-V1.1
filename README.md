@@ -1,107 +1,263 @@
-# MatterGen
+# MatterGen V1.1
 
-## AI-Powered Material Property Prediction
+## AI-Assisted Material Property Prediction
 
-MatterGen is a machine learning application for predicting material properties from molecular structure. The system accepts molecular representations such as SMILES strings and chemical formulas, processes them using RDKit, and applies scikit-learn models to estimate selected material properties.
+MatterGen is a machine learning and cheminformatics system for predicting material properties from molecular structure.
 
-The project combines molecular feature extraction, supervised learning, molecular similarity analysis, and 3D structure visualization in a single Streamlit application.
+Version 1.1 focuses on improving the original implementation through dataset validation, expanded molecular descriptors, property-specific machine learning models, and cross-validation-based model selection.
 
-## Features
+The current system implements the **Material → Property** direction of MatterGen.
 
-- Molecular input through SMILES strings and chemical formulas
-- Prediction of band gap, formation energy, stability score, and melting point
-- Molecular descriptor-based machine learning
-- Morgan fingerprint generation for molecular similarity analysis
-- Tanimoto similarity matching against reference compounds
-- Interactive 3D molecular visualization
-- Model feature importance and prediction insights
-- Modular separation of chemistry, machine learning, similarity, and visualization components
+---
 
-## Architecture
+## Overview
+
+Given a molecular structure represented as a SMILES string, MatterGen processes the structure using RDKit, extracts molecular descriptors, and predicts four material properties:
+
+- Band Gap
+- Formation Energy
+- Stability Score
+- Melting Point
+
+The system also provides molecular similarity analysis using Morgan fingerprints and Tanimoto similarity, along with interactive 3D molecular visualization.
+
+The project is currently an experimental research platform for development, benchmarking, and demonstration.
+
+---
+
+## Current Architecture
 
 ```text
-Molecular Input
-      |
-      v
-RDKit Molecular Processing
-      |
-      v
-Feature Extraction
-  |              |
-  |              +--> Morgan Fingerprints
-  |
-  +-----------------> Molecular Descriptors
-      |
-      +----------------------+
-      |                      |
-      v                      v
-ML Prediction         Similarity Analysis
-      |                      |
-      +----------+-----------+
-                 |
-                 v
-          Streamlit Interface
-                 |
-       +---------+---------+
-       |         |         |
-       v         v         v
- Predictions  Similarity  3D Structure
+                    Molecular Structure
+                           │
+                    SMILES / Formula
+                           │
+                           ▼
+                         RDKit
+                           │
+                Molecular Validation
+                           │
+             ┌─────────────┴─────────────┐
+             │                           │
+             ▼                           ▼
+     Molecular Descriptors        Morgan Fingerprint
+             │                           │
+             │                           ▼
+             │                  Tanimoto Similarity
+             │                           │
+             ▼                           │
+      21 Molecular Features              │
+             │                           │
+     ┌───────┼────────┬────────┐         │
+     ▼       ▼        ▼        ▼         │
+   Band    Formation Stability Melting   │
+   Gap     Energy    Score     Point     │
+     │       │        │        │         │
+     ▼       ▼        ▼        ▼         │
+ Gradient  Random   Random   Gradient    │
+ Boosting  Forest   Forest   Boosting    │
 ```
+
+---
 
 ## Machine Learning Pipeline
 
-### 1. Molecular Processing
+### Feature Engineering
 
-The application validates and parses molecular inputs using RDKit. SMILES strings are converted into molecular structures before feature extraction.
+MatterGen V1.1 uses 21 molecular descriptors generated using RDKit.
 
-### 2. Feature Extraction
+The feature set includes descriptors related to:
 
-The system uses two main molecular representations:
+- Molecular weight
+- Molecular lipophilicity
+- Hydrogen-bond donors and acceptors
+- Topological polar surface area
+- Rotatable bonds
+- Aromaticity
+- Carbon hybridization
+- Molecular topology
+- Molecular complexity
+- Other structural properties
 
-- **Molecular descriptors** for material property prediction, including molecular weight, LogP, TPSA, and other structural descriptors.
-- **Morgan fingerprints (ECFP4)** with 2048 bits for molecular similarity analysis.
+Morgan fingerprints are maintained separately from the prediction feature set and are used by the similarity engine.
 
-### 3. Property Prediction
+---
 
-Random Forest regression models are used to predict the following properties:
+## Property-Specific Models
 
-| Property | Unit |
+Instead of using one model for every property, V1.1 evaluates multiple machine learning algorithms and selects the better-performing approach for each target.
+
+| Property | Selected Model |
 |---|---|
-| Band Gap | eV |
-| Formation Energy | eV/atom |
-| Stability Score | 0–1 |
-| Melting Point | K |
+| Band Gap | Gradient Boosting |
+| Formation Energy | Random Forest |
+| Stability Score | Random Forest |
+| Melting Point | Gradient Boosting |
 
-Separate regression models are used for the target properties.
+The models evaluated during development include:
 
-### 4. Similarity Analysis
+- Random Forest Regressor
+- Gradient Boosting Regressor
+- Ridge Regression
 
-Morgan fingerprints are compared using the Tanimoto coefficient to identify structurally similar compounds in the reference dataset. The application returns the most similar compounds and their similarity scores.
+Model selection was based on 5-fold cross-validation.
 
-### 5. Visualization
+---
 
-Molecular structures are visualized interactively in three dimensions using Py3Dmol. RDKit is used for molecular processing and 3D coordinate generation.
+## Dataset
 
-## Model Configuration
+The current cleaned dataset contains:
 
-- **Algorithm:** Random Forest Regressor
-- **Number of estimators:** 100
-- **Maximum depth:** 10
-- **Features:** RDKit molecular descriptors
-- **Training split:** 80/20
-- **Cross-validation:** 5-fold
-- **Evaluation metrics:** MAE, RMSE, R²
+- **144 unique compounds**
+- **7 columns**
+- **21 molecular features**
+- **0 invalid SMILES**
+- **0 duplicate SMILES**
+- **0 missing values**
 
-The current prototype uses a dataset containing 50 compounds. The dataset is intended to demonstrate the complete prediction workflow rather than serve as a production-scale scientific benchmark.
+Dataset columns:
+
+```text
+smiles
+formula
+band_gap_ev
+formation_energy
+stability_score
+melting_point_k
+name
+```
+
+The original dataset contained duplicate records and one invalid SMILES entry. A dedicated dataset cleaning and auditing pipeline was introduced to identify and correct these issues.
+
+The original dataset is preserved separately as:
+
+```text
+data/materials_dataset_raw.csv
+```
+
+The cleaned dataset used by the current system is:
+
+```text
+data/materials_dataset.csv
+```
+
+---
+
+## Dataset Validation
+
+MatterGen includes tools for inspecting and validating the dataset before model training.
+
+The audit process checks:
+
+- Dataset dimensions
+- Duplicate records
+- Duplicate SMILES
+- Missing values
+- SMILES validity
+- Unique molecular structures
+- Target-property distributions
+- Statistical ranges of prediction targets
+
+---
+
+## Model Validation
+
+V1.1 uses 5-fold cross-validation to evaluate model stability.
+
+Current cross-validation results:
+
+| Property | Model | R² |
+|---|---|---:|
+| Band Gap | Gradient Boosting | 0.9461 ± 0.0348 |
+| Formation Energy | Random Forest | 0.9621 ± 0.0155 |
+| Stability Score | Random Forest | 0.9106 ± 0.0870 |
+| Melting Point | Gradient Boosting | 0.7493 ± 0.0935 |
+
+These results are based on the current 144-compound dataset and should not be interpreted as general performance on unseen real-world materials.
+
+---
+
+## Baseline vs Expanded Features
+
+The original MatterGen implementation used 8 molecular descriptors.
+
+V1.1 expands the representation to 21 descriptors.
+
+| Property | 8 Features | 21 Features |
+|---|---:|---:|
+| Band Gap | 0.9198 | 0.9525 |
+| Formation Energy | 0.9493 | 0.9540 |
+| Stability Score | 0.9228 | 0.9510 |
+| Melting Point | 0.6338 | 0.6342 |
+
+---
+
+## Molecular Similarity
+
+MatterGen uses Morgan fingerprints for structural similarity analysis.
+
+The similarity engine calculates the **Tanimoto similarity coefficient** between the input molecule and compounds in the dataset.
+
+The system can return structurally similar compounds along with their known properties.
+
+---
+
+## Molecular Visualization
+
+MatterGen provides interactive 3D visualization of molecular structures using:
+
+- RDKit
+- 3D conformer generation
+- Molecular geometry optimization
+- Py3Dmol
+
+---
+
+## Application
+
+The current application is built using Streamlit.
+
+### Predictions
+
+Displays:
+
+- Molecular information
+- Predicted material properties
+- Molecular descriptors
+- Prediction methodology
+
+### Similarity Analysis
+
+Displays:
+
+- Structurally similar compounds
+- Tanimoto similarity scores
+- Property comparisons
+
+### 3D Structure
+
+Provides an interactive representation of the input molecule.
+
+### Model Insights
+
+Provides:
+
+- Property-specific model information
+- Cross-validation performance
+- Feature importance
+- Training-data distributions
+
+---
 
 ## Project Structure
 
 ```text
-MatterGen/
+MatterGen-V1.1/
 │
 ├── app.py
-├── requirements.txt
 ├── README.md
+├── requirements.txt
+├── runtime.txt
 │
 ├── backend/
 │   ├── chemistry.py
@@ -111,116 +267,223 @@ MatterGen/
 │
 ├── data/
 │   ├── materials_dataset.csv
+│   ├── materials_dataset_raw.csv
 │   └── sample_inputs.csv
 │
-├── models/
-│   └── trained_model.pkl
+├── tools/
+│   ├── audit_dataset.py
+│   ├── clean_dataset.py
+│   ├── evaluate_baseline.py
+│   ├── feature_experiment.py
+│   ├── model_experiment.py
+│   └── cross_validation.py
 │
 └── utils/
     ├── config.py
     └── visualizer.py
 ```
 
-## Technology Stack
-
-| Technology | Purpose |
-|---|---|
-| Python | Core development and ML pipeline |
-| Scikit-learn | Machine learning and model evaluation |
-| RDKit | Molecular processing and cheminformatics |
-| Streamlit | Web application interface |
-| Pandas | Dataset processing |
-| NumPy | Numerical computation |
-| Plotly | Interactive data visualization |
-| Py3Dmol | 3D molecular visualization |
-
-## Dataset
-
-The prototype uses `data/materials_dataset.csv`, containing molecular representations and corresponding material properties for 50 compounds.
-
-The current dataset is intended for development and demonstration. Because of its limited size and composition, predictions should not be treated as experimentally validated material properties.
-
-Potential data sources for future development include:
-
-- Materials Project
-- PubChem
-- Cambridge Structural Database
+---
 
 ## Installation
 
-### 1. Clone the repository
+### Requirements
+
+- Python 3.10
+- pip
+- Git
+
+### Clone the repository
 
 ```bash
-git clone <repository-url>
-cd MatterGen
+git clone https://github.com/ALPHAPhoenix007/MatterGen-V1.1.git
+cd MatterGen-V1.1
 ```
 
-### 2. Install dependencies
+### Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Run the application
+### Run the application
 
 ```bash
 streamlit run app.py
 ```
 
-The application will be available at:
+---
 
-```text
-http://localhost:8501
+## Development and Evaluation Tools
+
+### Dataset audit
+
+```bash
+python tools/audit_dataset.py
 ```
 
-## Example Workflow
+### Dataset cleaning
 
-1. Enter a SMILES string or molecular formula.
-2. Validate and process the molecular structure using RDKit.
-3. Generate molecular descriptors and fingerprints.
-4. Run the trained Random Forest models.
-5. Display predicted material properties.
-6. Compare the input molecule with structurally similar compounds.
-7. Explore the molecular structure and model insights.
+```bash
+python tools/clean_dataset.py
+```
 
-## Limitations
+### Baseline evaluation
 
-MatterGen is currently a research and hackathon prototype. The training dataset is relatively small and includes synthetic or curated values. Consequently, the predictions are intended for demonstration and exploration rather than direct experimental or industrial decision-making.
+```bash
+python tools/evaluate_baseline.py
+```
 
-The accuracy and generalization of the models can be improved substantially with larger, higher-quality, experimentally validated datasets.
+### Feature experiment
 
-## Future Development
+```bash
+python tools/feature_experiment.py
+```
 
-- Expand the training dataset to thousands of compounds
-- Integrate Materials Project data through its API
-- Evaluate additional models such as Gradient Boosting and neural networks
-- Add prediction uncertainty estimates
-- Implement multi-objective material optimization
-- Improve validation using experimentally reported properties
-- Provide downloadable prediction reports
-- Deploy the application for wider access
+### Model comparison
 
-## Live Application
+```bash
+python tools/model_experiment.py
+```
 
-https://mattergen.streamlit.app/
+### Cross-validation
 
-## License
+```bash
+python tools/cross_validation.py
+```
 
-This project is released under the MIT License.
+---
 
-## Acknowledgements
+## Current Limitations
 
-MatterGen uses the following open-source technologies:
+MatterGen V1.1 is still an experimental system.
 
-- RDKit
-- Scikit-learn
-- Streamlit
-- Pandas
-- NumPy
-- Plotly
-- Py3Dmol
+### Dataset Size
 
+The current dataset contains only 144 compounds. This is insufficient for broad claims about material-property prediction performance.
 
+### Dataset Composition
 
+A larger, externally sourced materials dataset is required for meaningful scientific evaluation.
 
-## **--Envisioned by Atharva Dangra, B. Jyothi Nikhil & D. Koushik Mohammed--**
+### Molecular Representation
+
+The current prediction pipeline is based on molecular descriptors. More complex material structures, crystal lattices, elemental compositions, and periodic structures require representations beyond conventional molecular descriptors.
+
+### Melting Point Prediction
+
+Melting point currently has the weakest predictive performance among the four targets, indicating that additional data and more appropriate structural features are required.
+
+### Generalization
+
+The reported metrics are measured on the current dataset and should not be interpreted as proof of generalization to arbitrary unseen materials.
+
+---
+
+## Roadmap
+
+MatterGen is planned as a two-directional material intelligence system.
+
+### Direction 1 — Material → Property
+
+The current development focuses on predicting material properties from molecular structure.
+
+```text
+Material Structure
+       ↓
+Feature Extraction
+       ↓
+Machine Learning
+       ↓
+Material Properties
+```
+
+### Direction 2 — Property → Material
+
+The planned inverse system will begin with desired material properties and search for candidate materials that satisfy those requirements.
+
+```text
+Desired Properties
+       ↓
+Candidate Generation
+       ↓
+Property Prediction
+       ↓
+Candidate Ranking
+       ↓
+Potential Materials
+```
+
+Future development may include:
+
+- Larger externally sourced materials datasets
+- Materials Project integration
+- Crystal and composition-based representations
+- Uncertainty estimation
+- Multi-objective optimization
+- Candidate material generation
+- Property-constrained search
+- More advanced machine learning models
+- Experimental candidate ranking
+
+The long-term goal is to evolve MatterGen from a property prediction system into a broader **AI-assisted materials discovery platform**.
+
+---
+
+## Technology Stack
+
+| Component | Technology |
+|---|---|
+| Language | Python |
+| Machine Learning | scikit-learn |
+| Chemistry | RDKit |
+| Data Processing | Pandas, NumPy |
+| Visualization | Plotly |
+| Web Application | Streamlit |
+| Molecular Visualization | Py3Dmol |
+| Model Persistence | Joblib |
+
+---
+
+## Version History
+
+### V1.0
+
+Original hackathon implementation.
+
+Focused on:
+
+- Molecular property prediction
+- Random Forest models
+- 8 molecular descriptors
+- Molecular similarity
+- Streamlit interface
+
+### V1.1
+
+ML pipeline upgrade.
+
+Introduced:
+
+- Dataset cleaning and validation
+- 144-compound cleaned dataset
+- 21 molecular descriptors
+- Property-specific model selection
+- Random Forest and Gradient Boosting evaluation
+- 5-fold cross-validation
+- Improved model evaluation tools
+- Updated production prediction pipeline
+
+---
+
+## Disclaimer
+
+MatterGen is a research and educational project.
+
+Predictions generated by the current system should not be treated as experimentally validated material properties or as a substitute for laboratory measurements or established computational materials-science workflows.
+
+---
+
+## Project
+
+MatterGen is being developed as an ongoing exploration of machine learning, chemistry, mathematical modeling, and AI-assisted materials discovery.
