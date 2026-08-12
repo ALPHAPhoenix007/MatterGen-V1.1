@@ -39,12 +39,25 @@ PROPERTIES = [
 
 # Molecular Descriptors to Calculate
 DESCRIPTORS = [
-    'MolWt',                    # Molecular weight
-    'MolLogP',                  # Lipophilicity
-    'NumHDonors',               # H-bond donors
-    'NumHAcceptors',            # H-bond acceptors
-    'TPSA',                     # Topological polar surface area
+    'MolWt',
+    'MolLogP',
+    'NumHDonors',
+    'NumHAcceptors',
+    'TPSA',
     'NumRotatableBonds',
     'NumAromaticRings',
-    'FractionCSP3'
+    'FractionCSP3',
+    'HeavyAtomCount',
+    'NumHeteroatoms',
+    'RingCount',
+    'NumAliphaticRings',
+    'NumSaturatedRings',
+    'NumAromaticCarbocycles',
+    'NumAromaticHeterocycles',
+    'HeavyAtomMolWt',
+    'ExactMolWt',
+    'MolMR',
+    'LabuteASA',
+    'BalabanJ',
+    'BertzCT'
 ]
