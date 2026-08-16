@@ -45,3 +45,11 @@ Thumbs.db
 
 # Data (optional - keep sample data)
 # data/*.csv
+
+# MatterGen V1.2 large Materials Project data
+data/materials_project_structures.jsonl
+data/materials_project_raw.csv
+data/materials_project_clean.csv
+
+# Local Python virtual environments
+.venv-mp/
