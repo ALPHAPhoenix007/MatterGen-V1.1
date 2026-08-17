@@ -1,12 +1,25 @@
+# ============================================================
+# MATTERGEN — .gitignore
+# ============================================================
+
+# ------------------------------------------------------------
 # Python
+# ------------------------------------------------------------
+
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
+
+# Virtual environments
+.venv/
+.venv-mp/
 venv/
+env/
 ENV/
+
+# Packaging / builds
 build/
 develop-eggs/
 dist/
@@ -23,33 +36,75 @@ wheels/
 .installed.cfg
 *.egg
 
+# ------------------------------------------------------------
 # Jupyter Notebook
+# ------------------------------------------------------------
+
 .ipynb_checkpoints
 
-# Models
-models/*.pkl
+# ------------------------------------------------------------
+# IDEs / Editors
+# ------------------------------------------------------------
 
-# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# ------------------------------------------------------------
+# Operating System
+# ------------------------------------------------------------
+
 .DS_Store
 Thumbs.db
 
+# ------------------------------------------------------------
 # Streamlit
+# ------------------------------------------------------------
+
 .streamlit/
 
-# Data (optional - keep sample data)
-# data/*.csv
+# ------------------------------------------------------------
+# Models
+# ------------------------------------------------------------
 
-# MatterGen V1.2 large Materials Project data
+# Trained model files can be several GB
+models/
+*.pkl
+*.joblib
+
+# ------------------------------------------------------------
+# Materials Project — Large Raw / Generated Data
+# ------------------------------------------------------------
+
+# Large structure database (~1.8 GB)
 data/materials_project_structures.jsonl
+
+# Retrieved individual structures
+data/structures/
+
+# Large/raw datasets
 data/materials_project_raw.csv
 data/materials_project_clean.csv
 
-# Local Python virtual environments
-.venv-mp/
+# ------------------------------------------------------------
+# Temporary / Cache Files
+# ------------------------------------------------------------
+
+*.tmp
+*.temp
+*.log
+*.bak
+
+# ------------------------------------------------------------
+# MatterGen local files
+# ------------------------------------------------------------
+
+# Local experiments
+outputs/
+results/
+checkpoints/
+
+# Generated Materials Project feature datasets
+data/materials_project_*.csv

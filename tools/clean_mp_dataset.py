@@ -1,6 +1,7 @@
 from deltalake import DeltaTable
 import pandas as pd
 from pathlib import Path
+from pymatgen.core import Composition
 
 
 # ============================================================
@@ -15,6 +16,53 @@ MP_DATASET_PATH = Path(
 )
 
 
+def composition_to_formula(value):
+    """
+    Convert Materials Project composition data such as:
+
+        [('Na', 1.0), ('N', 1.0)]
+
+    into a reduced chemical formula such as:
+
+        NaN
+    """
+
+    try:
+
+        if value is None:
+            return None
+
+        if not isinstance(value, (list, tuple)):
+            return None
+
+        composition_dict = {}
+
+        for item in value:
+
+            if not isinstance(item, (list, tuple)):
+                continue
+
+            if len(item) < 2:
+                continue
+
+            element = str(item[0])
+            amount = float(item[1])
+
+            composition_dict[element] = amount
+
+        if not composition_dict:
+            return None
+
+        composition = Composition(
+            composition_dict
+        )
+
+        return composition.reduced_formula
+
+    except Exception:
+        return None
+
+
 def main():
 
     print("=" * 60)
@@ -27,12 +75,16 @@ def main():
 
     print("\nLoading raw dataset...")
 
-    df = pd.read_csv(RAW_CSV)
+    df = pd.read_csv(
+        RAW_CSV
+    )
 
-    print(f"Original rows: {len(df)}")
+    print(
+        f"Original rows: {len(df)}"
+    )
 
     # --------------------------------------------------------
-    # Remove exact duplicate rows
+    # Remove exact duplicates
     # --------------------------------------------------------
 
     before = len(df)
@@ -61,7 +113,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Recover missing formulas from Materials Project
+    # Recover missing formulas
     # --------------------------------------------------------
 
     missing_formula = df["formula"].isna()
@@ -75,43 +127,96 @@ def main():
 
     if missing_count > 0:
 
-        print("Recovering formulas from local Materials Project data...")
+        print(
+            "Recovering formulas from local "
+            "Materials Project data..."
+        )
 
         table = DeltaTable(
             str(MP_DATASET_PATH)
         )
 
-        structure_data = table.to_pyarrow_table(
+        mp_data = table.to_pyarrow_table(
             columns=[
                 "material_id",
                 "formula_pretty",
+                "composition",
             ]
         ).to_pandas()
 
-        structure_data = structure_data.drop_duplicates(
+        mp_data = mp_data.drop_duplicates(
             subset=["material_id"]
         )
 
-        formula_map = dict(
-            zip(
-                structure_data["material_id"],
-                structure_data["formula_pretty"]
-            )
+        mp_data = mp_data.set_index(
+            "material_id"
         )
 
-        df.loc[
-            missing_formula,
-            "formula"
-        ] = df.loc[
-            missing_formula,
-            "material_id"
-        ].map(formula_map)
+        recovered = 0
+
+        for index in df.index[missing_formula]:
+
+            material_id = str(
+                df.loc[
+                    index,
+                    "material_id"
+                ]
+            )
+
+            if material_id not in mp_data.index:
+                continue
+
+            row = mp_data.loc[
+                material_id
+            ]
+
+            # ------------------------------------------------
+            # First choice: formula_pretty
+            # ------------------------------------------------
+
+            formula = row[
+                "formula_pretty"
+            ]
+
+            if pd.notna(formula):
+
+                df.loc[
+                    index,
+                    "formula"
+                ] = str(formula)
+
+                recovered += 1
+
+                continue
+
+            # ------------------------------------------------
+            # Second choice: composition
+            # ------------------------------------------------
+
+            formula = composition_to_formula(
+                row["composition"]
+            )
+
+            if formula is not None:
+
+                df.loc[
+                    index,
+                    "formula"
+                ] = formula
+
+                recovered += 1
+
+        print(
+            f"Formulas recovered: {recovered}"
+        )
 
     # --------------------------------------------------------
-    # Check formulas again
+    # Verify formula recovery
     # --------------------------------------------------------
 
-    remaining_missing = df["formula"].isna().sum()
+    remaining_missing = (
+        df["formula"].isna().sum()
+    )
 
     print(
         f"Missing formulas after recovery: "
@@ -143,7 +248,9 @@ def main():
     # Numerical sanity checks
     # --------------------------------------------------------
 
-    print("\nChecking numerical validity...")
+    print(
+        "\nChecking numerical validity..."
+    )
 
     invalid_band_gap = (
         df["band_gap_ev"] < 0
@@ -185,13 +292,33 @@ def main():
 
     if invalid_rows.sum() > 0:
 
-        print(
-            "Removing physically invalid rows..."
-        )
-
         df = df.loc[
             ~invalid_rows
         ].copy()
+
+        print(
+            "Physically invalid rows removed."
+        )
+
+    # --------------------------------------------------------
+    # Final formula check
+    # --------------------------------------------------------
+
+    if df["formula"].isna().any():
+
+        print(
+            "\nWARNING: Some formulas could not be recovered."
+        )
+
+        print(
+            df[
+                df["formula"].isna()
+            ][
+                ["material_id"]
+            ].to_string(
+                index=False
+            )
+        )
 
     # --------------------------------------------------------
     # Keep scientifically valid extreme values
@@ -206,7 +333,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Sort for reproducibility
+    # Sort
     # --------------------------------------------------------
 
     df = df.sort_values(
@@ -216,7 +343,7 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Save clean dataset
+    # Save
     # --------------------------------------------------------
 
     OUTPUT_CSV.parent.mkdir(
@@ -248,11 +375,6 @@ def main():
     print(
         f"Output: {OUTPUT_CSV}"
     )
-
-    print("\nColumns:")
-
-    for column in df.columns:
-        print(f"  - {column}")
 
     print("\nFinal missing values:")
 

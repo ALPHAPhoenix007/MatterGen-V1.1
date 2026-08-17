@@ -3,10 +3,42 @@ import pandas as pd
 import json
 from pathlib import Path
 
+from pymatgen.core import Structure, Lattice
+
 
 # ============================================================
 # MATTERGEN V1.2 — CRYSTAL STRUCTURE EXPORTER
 # ============================================================
+
+
+def make_json_safe(value):
+    """
+    Recursively convert NumPy values into normal Python
+    values that json.dumps() can serialize.
+    """
+
+    import numpy as np
+
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+
+    if isinstance(value, np.generic):
+        return value.item()
+
+    if isinstance(value, dict):
+        return {
+            key: make_json_safe(val)
+            for key, val in value.items()
+        }
+
+    if isinstance(value, (list, tuple)):
+        return [
+            make_json_safe(val)
+            for val in value
+        ]
+
+    return value
+
 
 CLEAN_DATASET = Path(
     "data/materials_project_clean.csv"
@@ -21,10 +53,113 @@ OUTPUT_PATH = Path(
 )
 
 
+def convert_structure(raw):
+
+    """
+    Convert the Arrow/NumPy representation from the local
+    Materials Project dataset into a clean pymatgen Structure.
+    """
+
+    lattice_data = raw["lattice"]
+
+    # --------------------------------------------------------
+    # Lattice matrix
+    # --------------------------------------------------------
+
+    matrix = lattice_data["matrix"]
+
+    matrix = [
+        [float(x) for x in row]
+        for row in matrix
+    ]
+
+    lattice = Lattice(matrix)
+
+    # --------------------------------------------------------
+    # Atomic sites
+    # --------------------------------------------------------
+
+    species = []
+    frac_coords = []
+    site_properties = {}
+
+    for site in raw["sites"]:
+
+        # ----------------------------------------------------
+        # Species
+        # ----------------------------------------------------
+
+        site_species = site["species"]
+
+        site_element = site_species[0]["element"]
+
+        species.append(site_element)
+
+        # ----------------------------------------------------
+        # Fractional coordinates
+        # ----------------------------------------------------
+
+        coords = [
+            float(x)
+            for x in site["abc"]
+        ]
+
+        frac_coords.append(coords)
+
+        # ----------------------------------------------------
+        # Site properties
+        # ----------------------------------------------------
+
+        properties = site.get(
+            "properties",
+            {}
+        )
+
+        for key, value in properties.items():
+
+            if value is None:
+                continue
+
+            if key not in site_properties:
+                site_properties[key] = []
+
+            site_properties[key].append(value)
+
+    # --------------------------------------------------------
+    # Keep only complete site-property arrays
+    # --------------------------------------------------------
+
+    valid_properties = {}
+
+    number_of_sites = len(frac_coords)
+
+    for key, values in site_properties.items():
+
+        if len(values) == number_of_sites:
+
+            valid_properties[key] = values
+
+    # --------------------------------------------------------
+    # Build pymatgen Structure
+    # --------------------------------------------------------
+
+    structure = Structure(
+        lattice=lattice,
+        species=species,
+        coords=frac_coords,
+        coords_are_cartesian=False,
+        site_properties=valid_properties
+    )
+
+    return structure
+
+
 def main():
 
     print("=" * 60)
-    print("MATTERGEN V1.2 — CRYSTAL STRUCTURE EXPORTER")
+    print(
+        "MATTERGEN V1.2 — CRYSTAL STRUCTURE EXPORTER"
+    )
     print("=" * 60)
 
     # --------------------------------------------------------
@@ -47,10 +182,12 @@ def main():
     )
 
     # --------------------------------------------------------
-    # Load structures
+    # Load Materials Project structures
     # --------------------------------------------------------
 
-    print("\nLoading Materials Project structures...")
+    print(
+        "\nLoading Materials Project structures..."
+    )
 
     table = DeltaTable(
         str(MP_DATASET_PATH)
@@ -59,7 +196,7 @@ def main():
     arrow_table = table.to_pyarrow_table(
         columns=[
             "material_id",
-            "structure",
+            "structure"
         ]
     )
 
@@ -88,17 +225,14 @@ def main():
     # Remove missing structures
     # --------------------------------------------------------
 
-    missing_count = structures[
-        "structure"
-    ].isna().sum()
-
-    print(
-        f"Missing structures: {missing_count}"
-    )
-
     structures = structures[
         structures["structure"].notna()
     ].copy()
+
+    print(
+        f"Structures after removing missing: "
+        f"{len(structures)}"
+    )
 
     # --------------------------------------------------------
     # Write JSONL
@@ -112,6 +246,7 @@ def main():
     print("\nWriting structure file...")
 
     written = 0
+    failed = 0
 
     with open(
         OUTPUT_PATH,
@@ -121,37 +256,51 @@ def main():
 
         for _, row in structures.iterrows():
 
-            structure = row["structure"]
-
-            # Materials Project's local dataset already
-            # provides the structure as a dictionary.
-            if isinstance(structure, dict):
-                structure_dict = structure
-
-            else:
-                # Safety fallback in case a pymatgen
-                # Structure object is returned.
-                structure_dict = structure.as_dict()
-
-            record = {
-                "material_id": str(
-                    row["material_id"]
-                ),
-                "structure": structure_dict,
-            }
-
-            f.write(
-                json.dumps(
-                    record,
-                    separators=(",", ":"),
-                    default=str
-                )
-                + "\n"
+            material_id = str(
+                row["material_id"]
             )
 
-            written += 1
+            try:
+
+                structure = convert_structure(
+                    row["structure"]
+                )
+
+                structure_dict = make_json_safe(
+                    structure.as_dict()
+                )
+
+                record = {
+                    "material_id": material_id,
+                    "structure": structure_dict
+                }
+
+                f.write(
+                    json.dumps(
+                        record,
+                        separators=(",", ":")
+                    )
+                    + "\n"
+                )
+
+                written += 1
+
+            except Exception as e:
+
+                failed += 1
+
+                print(
+                    f"\nFailed: {material_id}"
+                )
+
+                print(
+                    f"Reason: {e}"
+                )
+
+                continue
 
             if written % 10000 == 0:
+
                 print(
                     f"  Written: {written}"
                 )
@@ -166,6 +315,10 @@ def main():
 
     print(
         f"\nStructures written: {written}"
+    )
+
+    print(
+        f"Structures failed: {failed}"
     )
 
     print(
